@@ -1,0 +1,5 @@
+name: muse-video
+title: Muse 视频体验
+description: Describe a scene in text, pay ¥0.1, and receive a 10-second vertical video (720x1280) with a download link. The video is generated in the background and delivered via polling.
+category: Media
+include_in_prompt: false

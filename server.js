@@ -2,7 +2,7 @@
  * Muse 视频体验 API — SkillHub Pay Skill 后端
  *
  * 买家通过 Skill 调 API 下单：POST /api/video/jobs（支付宝 AI 按量付费，
- * HTTP 402 流程，¥0.5/次）→ 任务入队 → worker（Muse agent）在后台生成
+ * HTTP 402 流程，¥0.1/次）→ 任务入队 → worker（Muse agent）在后台生成
  * 10 秒竖屏视频并上传 → 买家轮询 GET /api/video/jobs/:id 取下载地址。
  * 本 API 只管排队 + 收费关卡，不生成视频。
  *
@@ -321,8 +321,8 @@ function createServer() {
         const cfg = config();
         return sendText(res, 200,
           'Muse 视频体验\n' +
-          '发一段文字描述，付 ¥0.5，Muse 为你生成一段 10 秒竖屏视频（720x1280），返回下载地址。\n' +
-          `当前模式：${cfg.mode}，单价：¥${cfg.price_cny}/次。\n` +
+          '发一段文字描述，付 ¥0.1，Muse 为你生成一段 10 秒竖屏视频（720x1280），返回下载地址。\n' +
+          `当前模式：${cfg.mode}，单价：¥${cfg.priceCny}/次。\n` +
           '接口：POST /api/video/jobs（创建任务，需支付宝按量付费凭证）\n' +
           '     GET /api/video/jobs/:id（轮询任务状态与下载地址）\n' +
           '视频生成需要几分钟，请创建任务后轮询查询，状态变为 done 后取 download_url。\n' +

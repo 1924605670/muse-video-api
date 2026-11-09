@@ -1,10 +1,10 @@
 # Muse 视频体验 API
 
-买家发一段文字描述，付 ¥0.5，Muse 为你生成一段 10 秒竖屏视频（720×1280），返回下载地址。
+买家发一段文字描述，付 ¥0.1，Muse 为你生成一段 10 秒竖屏视频（720×1280），返回下载地址。
 这是 SkillHub Pay Skill 的后端：只管排队 + 支付宝收费关卡，**不生成视频**。
 视频由 worker（Muse agent）在后台生成、上传，再通过 worker 回调把下载地址写回任务。
 
-- 单价：¥0.5/次（`PRICE_CNY`，SkillHub Pay Skill 单次上限 ¥0.50）
+- 单价：¥0.1/次（`PRICE_CNY`）
 - 视频：10 秒竖屏，默认 9:16（可选 16:9 / 1:1，时长 5–15 秒）
 - 下载链接：48 小时内有效，请及时保存
 - 生成需要几分钟：创建任务后请轮询查询，状态变为 `done` 后取 `download_url`
@@ -25,7 +25,7 @@ node server.js
 
 ```bash
 curl http://127.0.0.1:3000/health
-# {"ok":true,"mode":"sandbox","price_cny":0.5,"product":"muse-video-10s","version":"1.0.0"}
+# {"ok":true,"mode":"sandbox","price_cny":0.1,"product":"muse-video-10s","version":"1.0.0"}
 ```
 
 ### GET /
@@ -56,7 +56,7 @@ curl -i -X POST http://127.0.0.1:3000/api/video/jobs \
   -H 'Content-Type: application/json' \
   -d '{"prompt":"一只红熊猫在清晨竹林里喝茶","style":"cinematic"}'
 # HTTP/1.1 402 Payment Required
-# Payment-Needed: <Base64URL 账单，amount_cny=5，15 分钟有效>
+# Payment-Needed: <Base64URL 账单，amount_cny=0.1，15 分钟有效>
 # amtPaymentLink: https://aipay.alipay.com/pay?resource_id=...&out_trade_no=...
 
 # 2. 用户在支付宝完成支付后，带 Payment-Proof 重试 → 201 任务已入队
@@ -65,7 +65,7 @@ curl -X POST http://127.0.0.1:3000/api/video/jobs \
   -H 'Payment-Proof: SANDBOX-PROOF-OK' \
   -d '{"prompt":"一只红熊猫在清晨竹林里喝茶","style":"cinematic"}'
 # {"job_id":"MV...","status":"queued","prompt":"...","style":"cinematic",
-#  "aspect":"9:16","duration":10,"price_cny":0.5,"download_url":null,"error":null,
+#  "aspect":"9:16","duration":10,"price_cny":0.1,"download_url":null,"error":null,
 #  "created_at":"...","updated_at":"..."}
 # 沙箱凭证就是字面值 SANDBOX-PROOF-OK；生产用真实支付凭证。
 
@@ -109,7 +109,7 @@ worker 接口统一规则：缺少或错误的 `X-Worker-Token` → 401；未知
 
 ## 收费流程（支付宝 AI 按量付费，HTTP 402）
 
-1. 无 `Payment-Proof` → 返回 `402 Payment Required`，`Payment-Needed` 头携带 Base64URL 编码账单（金额 ¥0.5、商品名、资源 ID、15 分钟有效期、商家 RSA2 签名），同时给 `amtPaymentLink` 头。此时**不创建任务**。
+1. 无 `Payment-Proof` → 返回 `402 Payment Required`，`Payment-Needed` 头携带 Base64URL 编码账单（金额 ¥0.1、商品名、资源 ID、15 分钟有效期、商家 RSA2 签名），同时给 `amtPaymentLink` 头。此时**不创建任务**。
 2. 买家在支付宝完成支付，智能体带 `Payment-Proof` 重试。
 3. 服务端调用 `alipay.aipay.agent.payment.verify` 验付（沙箱接受字面凭证 `SANDBOX-PROOF-OK`；生产走真实接口并校验金额 / 订单号 / 资源 ID / trade_no 未重复履约）。
 4. 验付通过 → 创建任务（201），同一笔真实支付重复重试只返回已创建的任务（按 `trade_no` 幂等）。
@@ -137,7 +137,7 @@ worker 接口统一规则：缺少或错误的 `X-Worker-Token` → 401；未知
 3. 服务会注入 `PORT`，本服务监听 `0.0.0.0:$PORT`，无需改代码。
 4. 在 Zeabur 服务的环境变量里设置：
    - `AIPAY_MODE=sandbox`（上线前）/ `production`（接真支付宝后）
-   - `PRICE_CNY=0.5`
+   - `PRICE_CNY=0.1`
    - `WORKER_TOKEN=<强随机值>`（必填，否则 worker 接口全部 401）
    - 生产再加：`AIPAY_APP_ID` / `AIPAY_PRIVATE_KEY` / `AIPAY_PUBLIC_KEY` / `AIPAY_SELLER_ID` / `AIPAY_SERVICE_ID` / `AIPAY_GATEWAY=https://openapi.alipay.com/gateway.do`
    - 不要把真实密钥写进仓库；只通过 Zeabur 环境变量注入。
@@ -154,7 +154,7 @@ worker 接口统一规则：缺少或错误的 `X-Worker-Token` → 401；未知
 npm test   # node test/video.test.js，纯 node:assert
 ```
 
-13 组断言：health、中文说明、402 账单（¥0.5）与 amtPaymentLink、错误凭证 402、
+13 组断言：health、中文说明、402 账单（¥0.1）与 amtPaymentLink、错误凭证 402、
 空 prompt 400、沙箱凭证 201 入队、轮询、worker 口令 401/200、完成（https 校验）、
 重复 complete 409、失败上报、worker 列表、任务文件持久化。
 

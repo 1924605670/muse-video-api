@@ -15,11 +15,13 @@ function config() {
   return {
     mode: process.env.AIPAY_MODE || 'sandbox',
     appId: process.env.AIPAY_APP_ID || '',
-    privateKey: process.env.AIPAY_PRIVATE_KEY || '',
+    // Render 环境变量里多行 PEM 不好填，允许用字面 \n 转义传入，这里统一还原成真换行。
+    // 已是真换行时 replace 无影响；裸 PKCS#1 Base64 不含 \n，不受影响。
+    privateKey: (process.env.AIPAY_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
     sellerId: process.env.AIPAY_SELLER_ID || '2088SANDBOX',
     serviceId: process.env.AIPAY_SERVICE_ID || SANDBOX_SERVICE_ID,
     gateway: process.env.AIPAY_GATEWAY || SANDBOX_GATEWAY,
-    priceCny: Number(process.env.PRICE_CNY || 0.5),
+    priceCny: Number(process.env.PRICE_CNY || 0.1),
     sellerName: process.env.AIPAY_SELLER_NAME || 'Muse 视频体验',
     merchant: 'skillhub-user_e5c819c8',
     product: 'Muse 视频体验（10秒竖屏）',
