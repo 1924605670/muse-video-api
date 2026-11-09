@@ -1,0 +1,1 @@
+{"dependencies":{},"description":"Muse 视频体验 API — SkillHub Pay Skill（支付宝 AI 按量付费，HTTP 402 流程），¥5/次。买家发文字描述，付费后任务入队，worker 在后台生成 10 秒竖屏视频并回报下载地址。","engines":{"node":">=18"},"license":"MIT","main":"server.js","name":"muse-video","scripts":{"start":"node server.js","test":"node test/video.test.js"},"version":"1.0.0"}
