@@ -65,10 +65,22 @@ async function confirmFulfillment({ tradeNo, outTradeNo, resourceId }) {
     alipayPublicKey: process.env.AIPAY_PUBLIC_KEY || '',
     gateway: cfg.gateway,
     timeout: 30000,
+    // 密钥是 PKCS#8，SDK 默认按 PKCS#1 格式化会损坏密钥导致签名崩溃，见 verify.js。
+    keyType: 'PKCS8',
   });
-  const resp = await sdk.exec('alipay.aipay.agent.fulfillment.confirm', {
-    bizContent: { trade_no: tradeNo },
-  });
+  let resp;
+  try {
+    resp = await sdk.exec('alipay.aipay.agent.fulfillment.confirm', {
+      bizContent: { trade_no: tradeNo },
+    });
+  } catch (e) {
+    return {
+      ok: false,
+      mode: 'production',
+      reason: 'FULFILLMENT_CONFIRM_FAILED',
+      detail: e.message || '履约确认调用失败',
+    };
+  }
   const data = resp.alipay_aipay_agent_fulfillment_confirm_response || resp;
   if (String(data.code) === '10000') {
     return {

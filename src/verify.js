@@ -94,11 +94,20 @@ async function verifyProduction(parsed, bill) {
     alipayPublicKey: process.env.AIPAY_PUBLIC_KEY || '',
     gateway: cfg.gateway,
     timeout: 30000,
+    // 密钥是 openssl 生成的 PKCS#8（-----BEGIN PRIVATE KEY-----）。
+    // SDK 默认按 PKCS#1（RSA PRIVATE KEY）格式化，会把 PKCS#8 的 DER 体
+    // 错标成 PKCS#1，导致签名时报 ERR_OSSL_UNSUPPORTED 并使进程崩溃。
+    keyType: 'PKCS8',
   });
   const bizContent = { payment_proof: parsed.paymentProof, trade_no: parsed.tradeNo };
   if (parsed.clientSession) bizContent.client_session = parsed.clientSession;
 
-  const resp = await sdk.exec('alipay.aipay.agent.payment.verify', { bizContent });
+  let resp;
+  try {
+    resp = await sdk.exec('alipay.aipay.agent.payment.verify', { bizContent });
+  } catch (e) {
+    return { ok: false, mode: 'production', reason: 'VERIFY_FAILED', detail: e.message || '验付调用失败' };
+  }
   const data = resp.alipay_aipay_agent_payment_verify_response || resp;
   if (String(data.code) !== '10000') {
     return { ok: false, mode: 'production', reason: 'VERIFY_FAILED', detail: data.sub_msg || data.msg || '验付失败' };
