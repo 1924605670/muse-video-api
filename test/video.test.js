@@ -85,7 +85,7 @@ async function main() {
     assert.match(r.text, /¥0.1/);
   });
 
-  await check('无 Payment-Proof 创建任务 → 402 + Payment-Needed 账单（¥0.1）+ amtPaymentLink，不建任务', async () => {
+  await check('无 Payment-Proof 创建任务 → 402 + Payment-Needed 账单（¥0.1）+ amtPaymentLink 为预下单号（非 URL），不建任务', async () => {
     const r = await req('POST', '/api/video/jobs', {
       body: { prompt: '一只红熊猫在清晨竹林里喝茶', style: 'cinematic' },
     });
@@ -97,10 +97,25 @@ async function main() {
     assert.strictEqual(bill.currency, 'CNY');
     assert.strictEqual(bill.product, 'Muse 视频体验（10秒竖屏）');
     assert.ok(bill.resource_id);
-    assert.ok(r.headers.get('amtpaymentlink'), '缺少 amtPaymentLink 头');
+    const link = r.headers.get('amtpaymentlink');
+    assert.ok(link, '缺少 amtPaymentLink 头');
+    assert.strictEqual(link, 'SANDBOX-PREPAY', 'amtPaymentLink 必须是预下单号，绝不能是拼出的 URL');
+    assert.ok(!link.startsWith('http'), 'amtPaymentLink 绝不能是 URL（占位链接曾导致真实用户 404）');
     // 没有任务被创建：查一个不存在的 id 应为 404
     const g = await req('GET', '/api/video/jobs/MV-DOES-NOT-EXIST');
     assert.strictEqual(g.status, 404);
+  });
+
+  await check('预下单模块：沙箱模式直接返回 SANDBOX-PREPAY，不调支付宝', async () => {
+    const { createPrePayOrder } = require('../src/precreate');
+    const r = await createPrePayOrder({
+      outTradeNo: 'MVTEST123',
+      amount: '0.10',
+      goodsName: 'Muse 视频体验（10秒竖屏）',
+      payBefore: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+    });
+    assert.strictEqual(r.ok, true);
+    assert.strictEqual(r.amtPrePayId, 'SANDBOX-PREPAY');
   });
 
   await check('错误凭证 → 402', async () => {
