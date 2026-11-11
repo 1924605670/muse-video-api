@@ -21,7 +21,8 @@
 'use strict';
 
 const http = require('node:http');
-const { createBill, paymentLinkFor, base64UrlEncode, config } = require('./src/bill');
+const { createBill, base64UrlEncode, config } = require('./src/bill');
+const { createPrePayOrder } = require('./src/precreate');
 const { verifyPaymentProof } = require('./src/verify');
 const { confirmFulfillment } = require('./src/fulfill');
 const { JobStore, publicJob } = require('./src/jobs');
@@ -110,9 +111,23 @@ function validateCreateJob(body) {
   return null;
 }
 
-/** 无有效凭证时返回 402 + 账单（并生成一笔待支付订单）。 */
-function respondPaymentNeeded(req, res, reason) {
+/**
+ * 无有效凭证时返回 402 + 账单（并生成一笔待支付订单）。
+ * 官方流程：先调用支付宝预下单（precreate）拿到 amt_pre_pay_id，
+ * 再把该预下单号放进 amtPaymentLink 响应头返回 402。
+ * 预下单失败时返回 502，绝不发占位链接（此前自行拼出的
+ * https://aipay.alipay.com/pay?... 并不存在，真实用户点开返回 404）。
+ */
+async function respondPaymentNeeded(req, res, reason) {
   const { bill, order } = createBill();
+  const pre = await createPrePayOrder(order);
+  if (!pre.ok) {
+    return sendJson(res, 502, {
+      code: 'PRECREATE_FAILED',
+      message: `创建支付订单失败，请稍后重试（${pre.detail || pre.reason}）`,
+    });
+  }
+  order.amtPrePayId = pre.amtPrePayId;
   pendingOrders.set(order.outTradeNo, order);
   const paymentNeeded = base64UrlEncode(JSON.stringify(bill));
   sendJson(
@@ -130,7 +145,7 @@ function respondPaymentNeeded(req, res, reason) {
     },
     {
       'Payment-Needed': paymentNeeded,
-      amtPaymentLink: paymentLinkFor(bill.resource_id, bill.out_trade_no),
+      amtPaymentLink: pre.amtPrePayId,
     },
   );
 }
@@ -322,7 +337,7 @@ function createServer() {
         return sendText(res, 200,
           'Muse 视频体验\n' +
           '发一段文字描述，付 ¥0.1，Muse 为你生成一段 10 秒竖屏视频（720x1280），返回下载地址。\n' +
-          `当前模式：${cfg.mode}，单价：¥${cfg.priceCny}/次。\n` +
+          `当前模式：${cfg.mode}，单价：¥${cfg.price_cny}/次。\n` +
           '接口：POST /api/video/jobs（创建任务，需支付宝按量付费凭证）\n' +
           '     GET /api/video/jobs/:id（轮询任务状态与下载地址）\n' +
           '视频生成需要几分钟，请创建任务后轮询查询，状态变为 done 后取 download_url。\n' +

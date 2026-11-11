@@ -55,7 +55,7 @@ Content-Type: application/json
 
 付费流程（支付宝 AI 按量付费，HTTP 402）：
 
-1. 第一次不带支付凭证调用，返回 `402 Payment Required`，响应头 `Payment-Needed` 携带 Base64URL 编码的账单（金额 ¥0.1、商品名、资源 ID、15 分钟有效期），同时给 `amtPaymentLink` 支付链接。此时不创建任务。
+1. 第一次不带支付凭证调用，服务端先调支付宝预下单接口（`alipay.aipay.agent.payment.precreate`）拿到 `amt_pre_pay_id`，再返回 `402 Payment Required`，响应头 `Payment-Needed` 携带 Base64URL 编码的账单（金额 ¥0.1、商品名、资源 ID、15 分钟有效期），`amtPaymentLink` 响应头的值就是该预下单号本身（不是 URL）。此时不创建任务。预下单失败时返回 `502`，绝不发占位链接。
 2. 用户在支付宝完成支付后，带 `Payment-Proof` 请求头重试同一请求。
 3. 服务端验付通过后返回 `201`，任务已入队。同一笔支付重复重试只返回已创建的任务，不会重复收费。
 4. 验付失败时返回 `402`，按第 1 步重新走支付流程。

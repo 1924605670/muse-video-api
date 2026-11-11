@@ -57,7 +57,7 @@ curl -i -X POST http://127.0.0.1:3000/api/video/jobs \
   -d '{"prompt":"一只红熊猫在清晨竹林里喝茶","style":"cinematic"}'
 # HTTP/1.1 402 Payment Required
 # Payment-Needed: <Base64URL 账单，amount_cny=0.1，15 分钟有效>
-# amtPaymentLink: https://aipay.alipay.com/pay?resource_id=...&out_trade_no=...
+# amtPaymentLink: <amt_pre_pay_id，支付宝预下单号，如 amt_pre_pay_20261111_000001>
 
 # 2. 用户在支付宝完成支付后，带 Payment-Proof 重试 → 201 任务已入队
 curl -X POST http://127.0.0.1:3000/api/video/jobs \
@@ -109,13 +109,13 @@ worker 接口统一规则：缺少或错误的 `X-Worker-Token` → 401；未知
 
 ## 收费流程（支付宝 AI 按量付费，HTTP 402）
 
-1. 无 `Payment-Proof` → 返回 `402 Payment Required`，`Payment-Needed` 头携带 Base64URL 编码账单（金额 ¥0.1、商品名、资源 ID、15 分钟有效期、商家 RSA2 签名），同时给 `amtPaymentLink` 头。此时**不创建任务**。
+1. 无 `Payment-Proof` → 服务端先调支付宝预下单（`alipay.aipay.agent.payment.precreate`）拿到 `amt_pre_pay_id`，再返回 `402 Payment Required`，`Payment-Needed` 头携带 Base64URL 编码账单（金额 ¥0.1、商品名、资源 ID、15 分钟有效期、商家 RSA2 签名），`amtPaymentLink` 头的值就是该预下单号本身（不是 URL）。此时**不创建任务**。预下单失败返回 `502`，绝不发占位链接（此前拼出的 `https://aipay.alipay.com/pay?...` 并不存在，真实用户点开返回 404）。
 2. 买家在支付宝完成支付，智能体带 `Payment-Proof` 重试。
 3. 服务端调用 `alipay.aipay.agent.payment.verify` 验付（沙箱接受字面凭证 `SANDBOX-PROOF-OK`；生产走真实接口并校验金额 / 订单号 / 资源 ID / trade_no 未重复履约）。
 4. 验付通过 → 创建任务（201），同一笔真实支付重复重试只返回已创建的任务（按 `trade_no` 幂等）。
 5. 调用 `alipay.aipay.agent.fulfillment.confirm` 确认履约（沙箱只记日志）。
 
-实现见 `src/bill.js`（账单）、`src/verify.js`（验付）、`src/fulfill.js`（履约确认），
+实现见 `src/bill.js`（账单）、`src/precreate.js`（预下单）、`src/verify.js`（验付）、`src/fulfill.js`（履约确认），
 与姊妹项目 `talkshow-audit` 同源（支付宝官方 `alipay-aipay` 集成 Skill 的 A2M 契约）。
 
 ## worker 如何工作（给 Muse agent 的约定）
@@ -154,7 +154,7 @@ worker 接口统一规则：缺少或错误的 `X-Worker-Token` → 401；未知
 npm test   # node test/video.test.js，纯 node:assert
 ```
 
-13 组断言：health、中文说明、402 账单（¥0.1）与 amtPaymentLink、错误凭证 402、
+14 组断言：health、中文说明、402 账单（¥0.1）与 amtPaymentLink 预下单号、预下单沙箱占位、错误凭证 402、
 空 prompt 400、沙箱凭证 201 入队、轮询、worker 口令 401/200、完成（https 校验）、
 重复 complete 409、失败上报、worker 列表、任务文件持久化。
 
