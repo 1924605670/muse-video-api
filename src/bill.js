@@ -43,14 +43,16 @@ function base64UrlDecode(str) {
   return Buffer.from(s, 'base64').toString('utf8');
 }
 
-/** ISO 8601 带时区偏移（支付宝 pay_before 格式），如 2026-11-09T10:45:00+08:00 */
+/** ISO 8601 带时区偏移（支付宝 pay_before 格式），如 2026-11-09T10:45:00+08:00。
+ * 注意：时区偏移必须带冒号（+08:00），支付宝不接受 +0800 格式——
+ * 用 +0800 调 precreate 会返回 Business Failed（错误码 2042）。 */
 function formatISO8601WithTimezone(date) {
   const pad = (n) => String(n).padStart(2, '0');
   const offset = -date.getTimezoneOffset();
   const sign = offset >= 0 ? '+' : '-';
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
     `T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}` +
-    `${sign}${pad(Math.floor(Math.abs(offset) / 60))}${pad(Math.abs(offset) % 60)}`;
+    `${sign}${pad(Math.floor(Math.abs(offset) / 60))}:${pad(Math.abs(offset) % 60)}`;
 }
 
 /**
@@ -155,15 +157,9 @@ function createBill() {
   return { bill, order };
 }
 
-/** amtPaymentLink 兼容头：携带同一 resource_id 的支付链接（占位格式，真实支付链接由智能体客户端据 Payment-Needed 账单发起）。 */
-function paymentLinkFor(resourceId, outTradeNo) {
-  return `https://aipay.alipay.com/pay?resource_id=${resourceId}&out_trade_no=${encodeURIComponent(outTradeNo)}`;
-}
-
 module.exports = {
   config,
   createBill,
-  paymentLinkFor,
   base64UrlEncode,
   base64UrlDecode,
   formatISO8601WithTimezone,
