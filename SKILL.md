@@ -1,21 +1,21 @@
 ---
 name: muse-video
 slug: muse-video
-version: 1.0.1
+version: 1.0.2
 displayName: Muse 视频体验
-summary: 发一段文字描述，付 ¥0.1，生成一段 10 秒竖屏视频，返回下载地址
-description: Describe a scene in text, pay ¥0.1, and receive a 10-second vertical video (720x1280) with a download link. The video is generated in the background and delivered via polling.
+summary: 发一段文字描述，付 ¥0.5，生成一段 10 秒竖屏视频，返回下载地址
+description: Describe a scene in text, pay ¥0.5, and receive a 10-second vertical video (720x1280) with a download link. The video is generated in the background and delivered via polling.
 tags: [video, text-to-video, vertical-video, pay-skill, alipay]
 license: MIT
 ---
 
 # Muse 视频体验
 
-发一段文字描述，付 ¥0.1，生成一段 10 秒竖屏视频（720×1280），返回下载地址。视频在后台生成，需要几分钟，创建任务后轮询查询，状态变为 `done` 后取下载地址。
+发一段文字描述，付 ¥0.5，生成一段 10 秒竖屏视频（720×1280），返回下载地址。视频在后台生成，需要几分钟，创建任务后轮询查询，状态变为 `done` 后取下载地址。
 
 ## 价格与计费
 
-- 单价：¥0.1/次，按次收费，用支付宝 AI 按量付费（HTTP 402 流程）。
+- 单价：¥0.5/次，按次收费，用支付宝 AI 按量付费（HTTP 402 流程）。
 - 每次调用只生成一段视频，不包月、不打包。
 - 下载链接 48 小时内有效，请及时保存。
 
@@ -55,7 +55,7 @@ Content-Type: application/json
 
 付费流程（支付宝 AI 按量付费，HTTP 402）：
 
-1. 第一次不带支付凭证调用，服务端先调支付宝预下单接口（`alipay.aipay.agent.payment.precreate`）拿到 `amt_pre_pay_id`，再返回 `402 Payment Required`，响应头 `Payment-Needed` 携带 Base64URL 编码的账单（金额 ¥0.1、商品名、资源 ID、15 分钟有效期），`amtPaymentLink` 响应头的值就是该预下单号本身（不是 URL）。此时不创建任务。预下单失败时返回 `502`，绝不发占位链接。
+1. 第一次不带支付凭证调用，服务端先调支付宝预下单接口（`alipay.aipay.agent.payment.precreate`）拿到 `amt_pre_pay_id`，再返回 `402 Payment Required`，响应头 `Payment-Needed` 携带 Base64URL 编码的账单（金额 ¥0.5、商品名、资源 ID、15 分钟有效期），`amtPaymentLink` 响应头的值就是该预下单号本身（不是 URL）。此时不创建任务。预下单失败时返回 `502`，绝不发占位链接。
 2. 用户在支付宝完成支付后，带 `Payment-Proof` 请求头重试同一请求。
 3. 服务端验付通过后返回 `201`，任务已入队。同一笔支付重复重试只返回已创建的任务，不会重复收费。
 4. 验付失败时返回 `402`，按第 1 步重新走支付流程。
@@ -112,7 +112,7 @@ Content-Type: application/json
   "style": "cinematic",
   "aspect": "9:16",
   "duration": 10,
-  "price_cny": 0.1,
+  "price_cny": 0.5,
   "download_url": null,
   "error": null,
   "created_at": "...",
@@ -141,7 +141,7 @@ GET https://muse-video-api.onrender.com/api/video/jobs/{job_id}
 GET https://muse-video-api.onrender.com/health
 ```
 
-返回 `{"ok":true,"mode":"production","price_cny":0.1,"product":"muse-video-10s","version":"1.0.0"}`（`mode` 随部署环境变化，生产为 `production`，沙箱为 `sandbox`）。服务是 Render 免费版，15 分钟无访问会休眠，第一次请求可能要等 30–60 秒冷启动，超时就重试一次。
+返回 `{"ok":true,"mode":"production","price_cny":0.5,"product":"muse-video-10s","version":"1.0.0"}`（`mode` 随部署环境变化，生产为 `production`，沙箱为 `sandbox`）。服务是 Render 免费版，15 分钟无访问会休眠，第一次请求可能要等 30–60 秒冷启动，超时就重试一次。
 
 ## 使用注意
 
