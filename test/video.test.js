@@ -17,7 +17,7 @@ const JOBS_FILE = path.join(os.tmpdir(), `muse-video-test-${process.pid}.json`);
 
 // 必须在 require server 之前设置环境变量（JobStore 在模块加载时读 JOBS_FILE）
 process.env.AIPAY_MODE = 'sandbox';
-process.env.PRICE_CNY = '0.1';
+process.env.PRICE_CNY = '0.5';
 process.env.WORKER_TOKEN = WORKER_TOKEN;
 process.env.JOBS_FILE = JOBS_FILE;
 
@@ -69,12 +69,12 @@ async function main() {
   let jobId = null;
   let job2Id = null;
 
-  await check('GET /health 返回 200，mode=sandbox，price_cny=0.1，product=muse-video-10s', async () => {
+  await check('GET /health 返回 200，mode=sandbox，price_cny=0.5，product=muse-video-10s', async () => {
     const r = await req('GET', '/health');
     assert.strictEqual(r.status, 200);
     assert.strictEqual(r.json.ok, true);
     assert.strictEqual(r.json.mode, 'sandbox');
-    assert.strictEqual(r.json.price_cny, 0.1);
+    assert.strictEqual(r.json.price_cny, 0.5);
     assert.strictEqual(r.json.product, 'muse-video-10s');
   });
 
@@ -82,10 +82,10 @@ async function main() {
     const r = await req('GET', '/');
     assert.strictEqual(r.status, 200);
     assert.match(r.text, /Muse 视频体验/);
-    assert.match(r.text, /¥0.1/);
+    assert.match(r.text, /¥0.5/);
   });
 
-  await check('无 Payment-Proof 创建任务 → 402 + Payment-Needed 账单（¥0.1）+ amtPaymentLink 为预下单号（非 URL），不建任务', async () => {
+  await check('无 Payment-Proof 创建任务 → 402 + Payment-Needed 账单（¥0.5）+ amtPaymentLink 为预下单号（非 URL），不建任务', async () => {
     const r = await req('POST', '/api/video/jobs', {
       body: { prompt: '一只红熊猫在清晨竹林里喝茶', style: 'cinematic' },
     });
@@ -93,7 +93,7 @@ async function main() {
     const needed = r.headers.get('payment-needed');
     assert.ok(needed, '缺少 Payment-Needed 头');
     const bill = JSON.parse(b64urlDecode(needed));
-    assert.strictEqual(bill.amount_cny, 0.1);
+    assert.strictEqual(bill.amount_cny, 0.5);
     assert.strictEqual(bill.currency, 'CNY');
     assert.strictEqual(bill.product, 'Muse 视频体验（10秒竖屏）');
     assert.ok(bill.resource_id);
@@ -110,7 +110,7 @@ async function main() {
     const { createPrePayOrder } = require('../src/precreate');
     const r = await createPrePayOrder({
       outTradeNo: 'MVTEST123',
-      amount: '0.10',
+      amount: '0.50',
       goodsName: 'Muse 视频体验（10秒竖屏）',
       payBefore: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
     });
@@ -143,7 +143,7 @@ async function main() {
     assert.strictEqual(r.json.style, 'cinematic');
     assert.strictEqual(r.json.aspect, '9:16');
     assert.strictEqual(r.json.duration, 10);
-    assert.strictEqual(r.json.price_cny, 0.1);
+    assert.strictEqual(r.json.price_cny, 0.5);
     assert.strictEqual(r.json.download_url, null);
     assert.ok(r.json.job_id, '缺少 job_id');
     assert.ok(r.json.created_at, '缺少 created_at');
